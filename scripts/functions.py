@@ -465,6 +465,26 @@ def LinReg(x, y):
     output = [gain, offset]
     return output
 
+# simpler regression function which does not use sklearn LiearRegression function
+def LinearReg(x, y):
+    # number of observations/points
+    n = np.size(x)
+
+    # mean of x and y vector
+    m_x = np.mean(x)
+    m_y = np.mean(y)
+
+    # calculating cross-deviation and deviation about x
+    SS_xy = np.sum([a * b for a, b in zip(x, y)]) - n * m_y * m_x
+    SS_xx = np.sum([a * b for a, b in zip(x, x)]) - n * m_x * m_x
+
+    # calculating regression coefficients
+    b_1 = SS_xy / SS_xx
+    b_0 = m_y - b_1 * m_x
+    output = [b_1, b_0]
+
+    return output
+
 
 def reg(DS, input_column, output_column):
     primary_factors = ['FLUO', 'STATE', 'EXC_P_CODE', 'CHAMBER', 'INS_ID', 'CONC', 'DET_P']
@@ -484,7 +504,8 @@ def reg(DS, input_column, output_column):
         DS_selected = DS[DS.set_index(loop_over_factors).index.isin(sets_DS.iloc[i:i+1].set_index(loop_over_factors).index)]
         x = list(DS_selected[input_column])
         y = list(DS_selected[output_column])
-        [gain, offset] = find_gain_and_offset(x, y)
+        # [gain, offset] = find_gain_and_offset(x, y)
+        [gain, offset] = LinearReg(x, y)
         sets_DS.loc[sets_DS.index[i], 'GAIN'] = gain
         sets_DS.loc[sets_DS.index[i], 'OFFSET'] = offset
         sets_DS.at[sets_DS.index[i], 'X'] = 0
@@ -503,6 +524,46 @@ def reg(DS, input_column, output_column):
 
 
 def find_bgCalc_and_offsetCalc(result):
+    switch = 1
+    precalculated_coefficient = {
+    'FAM': {
+        'XeqBKG_C0': 4.143750935,
+        'XeqBKG_C1': 0.566181856,
+        'XeqOFS_C0': -2.082774306,
+        'XeqOFS_C1': 0.896083992
+
+    },
+    'HEX': {
+        'XeqBKG_C0': 0.031720361,
+        'XeqBKG_C1': 1.163073989,
+        'XeqOFS_C0': 0.042526804,
+        'XeqOFS_C1': 0.84666081
+    },
+    'TXR': {
+        'XeqBKG_C0': 0.377960335,
+        'XeqBKG_C1': 1.016360079,
+        'XeqOFS_C0': -0.338277603,
+        'XeqOFS_C1': 0.973409238
+    },
+    'CY5': {
+        'XeqBKG_C0': 0.282115821,
+        'XeqBKG_C1': 1.126137978,
+        'XeqOFS_C0': -0.152577211,
+        'XeqOFS_C1': 0.864583032
+    },
+    'AX70': {
+        'XeqBKG_C0': 0.195426795,
+        'XeqBKG_C1': 1.029400475,
+        'XeqOFS_C0': -0.162917902,
+        'XeqOFS_C1': 0.961164177
+    },
+    'AX75': {
+        'XeqBKG_C0': 0.01230243,
+        'XeqBKG_C1': 1.108215959,
+        'XeqOFS_C0': 0.024310139,
+        'XeqOFS_C1': 0.886358012
+    }
+}
     fluors = result['FLUO'].unique()    # create list with different fluor names (.unique() returns in order of appearance)
     bgCalc = []     # create emtpy list for calculated Background (list was chosen as datatype as it is apperently more memory efficient to use in for-loop)
     offsetCalc = []     # create empty list for calculated Offset
@@ -511,10 +572,14 @@ def find_bgCalc_and_offsetCalc(result):
         # temp = filtering(result, FLUO=i) alternative way of filtering
         x = list(temp['OFFSET'])
         y = list(temp['BG'])
-        [m_x_offset, b_x_offset] = LinReg(x, y)   # Do regression with x = offset
-        [m_x_bkg, b_x_bkg] = LinReg(y, x)     # Do regression with x = background
-        bgCalc.extend(list(temp['OFFSET']*m_x_offset + b_x_offset))  # Calculate background based on regression + extend the list
-        offsetCalc.extend(list(temp['BG']*m_x_bkg + b_x_bkg))   # Calculate offset based on regression + extend the list
+        if switch == 0: # do the regression with whatever dataset coming as input
+            [m_x_offset, b_x_offset] = LinearReg(x, y)   # Do regression with x = offset
+            [m_x_bkg, b_x_bkg] = LinearReg(y, x)     # Do regression with x = background
+        elif switch == 1: # avoid new regression and return the pre-calculated value based on the instruments characterized up to Jan 2022
+            [m_x_offset, b_x_offset] = [precalculated_coefficient[i]['XeqOFS_C1'], precalculated_coefficient[i]['XeqOFS_C0']]   # Return precalculated coeffs
+            [m_x_bkg, b_x_bkg] = [precalculated_coefficient[i]['XeqBKG_C1'], precalculated_coefficient[i]['XeqBKG_C0']]   # Return precalculated coeffs
+        bgCalc.extend(list(temp['OFFSET']*m_x_offset + b_x_offset))  # Calculate background  + extend the list
+        offsetCalc.extend(list(temp['BG']*m_x_bkg + b_x_bkg))   # Calculate offset  + extend the list
     bgCalc = pd.DataFrame(bgCalc)       # change from List to DataFrame format
     offsetCalc = pd.DataFrame(offsetCalc)   # change from List to DataFrame format
     return [bgCalc, offsetCalc]
