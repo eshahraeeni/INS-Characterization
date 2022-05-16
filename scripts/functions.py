@@ -3,9 +3,9 @@ import gc
 import math
 import os
 from typing import Dict, List, Any, Union
+
 import numpy as np
 import pandas as pd
-pd.options.mode.chained_assignment = None # default='warn'
 from sklearn.linear_model import LinearRegression
 
 pd.options.display.width = 0
@@ -109,14 +109,36 @@ def processFile(input_path, file):
     fluo_channels = {'FAM': 1, 'HEX': 2, 'TXR': 3, 'CY5': 4, 'AX70': 5, 'AX75': 6}
 
     # define the concentration values for each fluorophore
-    concentrations = {}
-    concentrations['FAM'] = [0, 0.066, 0.25, 0.5, 1]
-    concentrations['HEX'] = [0, 0.033, 0.125, 0.3, 0.5]
-    concentrations['TXR'] = [0, 0.066, 0.25, 0.5, 1]
-    concentrations['CY5'] = [0, 0.033, 0.125, 0.3, 0.5]
-    concentrations['AX70'] = [0, 0.125, 0.5, 1.125, 2]
-    concentrations['AX75'] = [0, 0.033, 0.125, 0.3, 0.5]
+    # concentrations = {}
+    # concentrations['FAM'] = [0, 0.066, 0.25, 0.5, 1]
+    # concentrations['HEX'] = [0, 0.033, 0.125, 0.3, 0.5]
+    # concentrations['TXR'] = [0, 0.066, 0.25, 0.5, 1]
+    # concentrations['CY5'] = [0, 0.033, 0.125, 0.3, 0.5]
+    # concentrations['AX70'] = [0, 0.125, 0.5, 1.125, 2]
+    # concentrations['AX75'] = [0, 0.033, 0.125, 0.3, 0.5]
 
+
+    concentrations = {}
+    # temp = 0.695571502 * np.array([0, 0.088823821, 0.336453869, 0.672907738, 1.345815475])  # [0, 0.066, 0.25, 0.5, 1]
+    temp = 0.65 * np.array([0, 0.088823821, 0.336453869, 0.672907738, 1.345815475])  # [0, 0.066, 0.25, 0.5, 1]
+    concentrations['FAM'] = temp.tolist() #0.695571502 * np.array([0, 0.088823821, 0.336453869, 0.672907738, 1.345815475]) # [0, 0.066, 0.25, 0.5, 1]
+    # temp = 0.890890891 * np.array([0, 0.037947756, 0.143741499, 0.344979597, 0.574965995]) #[0, 0.033, 0.125, 0.3, 0.5]
+    temp = 0.95 * np.array([0, 0.037947756, 0.143741499, 0.344979597, 0.574965995])  # [0, 0.033, 0.125, 0.3, 0.5]
+    concentrations['HEX'] = temp.tolist()
+    # temp = 0.750922283 * np.array([0, 0.07283103, 0.275875115, 0.55175023, 1.10350046]) #[0, 0.066, 0.25, 0.5, 1]
+    temp = 0.75 * np.array([0, 0.07283103, 0.275875115, 0.55175023, 1.10350046])  # [0, 0.066, 0.25, 0.5, 1]
+    concentrations['TXR'] = temp.tolist()
+    # temp = 0.722450262 * np.array([0, 0.033779937, 0.127954309, 0.30709034, 0.511817234]) #[0, 0.033, 0.125, 0.3, 0.5]
+    temp = 0.75 * np.array([0, 0.033779937, 0.127954309, 0.30709034, 0.511817234])  # [0, 0.033, 0.125, 0.3, 0.5]
+    concentrations['CY5'] = temp.tolist()
+    # temp = 0.480350242 * np.array([0, 0.173865211, 0.695460844, 1.564786899, 2.781843376]) #[0, 0.125, 0.5, 1.125, 2]
+    temp = 0.50 * np.array([0, 0.173865211, 0.695460844, 1.564786899, 2.781843376])  # [0, 0.125, 0.5, 1.125, 2]
+    concentrations['AX70'] = temp.tolist()
+    # temp = 0.551639478 * np.array([0, 0.008811496, 0.033376878, 0.080104507, 0.133507512]) #[0, 0.033, 0.125, 0.3, 0.5]
+    temp = 0.50 * np.array([0, 0.008811496, 0.033376878, 0.080104507, 0.133507512])  # [0, 0.033, 0.125, 0.3, 0.5]
+    concentrations['AX75'] = temp.tolist()
+    
+    
     # define the excitation power for each fluorophore/channel [mW]
     exc_pwrs = {}
     exc_pwrs['FAM'] = [25.1]
@@ -301,7 +323,7 @@ def processFile(input_path, file):
                 chamber = left(pos, 1)
 
                 # walk through the entire protocol (5 cycles)
-                for i in range(5):
+                for i in range(step_length):
                     cycle = i + 1
                     exc_power = exc_pwrs[fluorophore][0]
                     power_code = 'P_nom'
@@ -429,7 +451,16 @@ def find_gain_and_offset(x, y):
     offset_reg = float(regressor.intercept_)
     offset_direct = float(min(Y))
     offset = max(offset_reg, offset_direct)
-    # offset = offset_reg
+    gain = float(regressor.coef_)
+    output = [gain, offset]
+    return output
+
+def LinReg(x, y):
+    X = np.array(x).reshape(-1, 1)
+    Y = np.array(y).reshape(-1, 1)
+    regressor = LinearRegression()
+    regressor.fit(X, Y)
+    offset = float(regressor.intercept_)
     gain = float(regressor.coef_)
     output = [gain, offset]
     return output
@@ -469,6 +500,24 @@ def reg(DS, input_column, output_column):
     DS.at[sets_DS.index, 'Y'] = sets_DS['Y']
     reg_result = DS.loc[sets_DS.index]
     return reg_result
+
+
+def find_bgCalc_and_offsetCalc(result):
+    fluors = result['FLUO'].unique()    # create list with different fluor names (.unique() returns in order of appearance)
+    bgCalc = []     # create emtpy list for calculated Background (list was chosen as datatype as it is apperently more memory efficient to use in for-loop)
+    offsetCalc = []     # create empty list for calculated Offset
+    for i in fluors:
+        temp = result[result['FLUO']==i]    # filter result to DataFrame that only contains certain fluor >> store in temp
+        # temp = filtering(result, FLUO=i) alternative way of filtering
+        x = list(temp['OFFSET'])
+        y = list(temp['BG'])
+        [m_x_offset, b_x_offset] = LinReg(x, y)   # Do regression with x = offset
+        [m_x_bkg, b_x_bkg] = LinReg(y, x)     # Do regression with x = background
+        bgCalc.extend(list(temp['OFFSET']*m_x_offset + b_x_offset))  # Calculate background based on regression + extend the list
+        offsetCalc.extend(list(temp['BG']*m_x_bkg + b_x_bkg))   # Calculate offset based on regression + extend the list
+    bgCalc = pd.DataFrame(bgCalc)       # change from List to DataFrame format
+    offsetCalc = pd.DataFrame(offsetCalc)   # change from List to DataFrame format
+    return [bgCalc, offsetCalc]
 
 
 def save_to_file(variable, file_name, location):
