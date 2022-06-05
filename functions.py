@@ -6,9 +6,11 @@ from typing import Dict, List, Any, Union
 
 import numpy as np
 import pandas as pd
+
 from sklearn.linear_model import LinearRegression
 
 pd.options.display.width = 0
+pd.options.mode.chained_assignment = None  # default='warn'
 
 
 def progress(percent=0, width=30):

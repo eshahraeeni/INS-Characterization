@@ -146,7 +146,7 @@ for index, item in enumerate(FLUO):
                     label=INS.loc['INS_ID'], ax = axs[math.floor(index/cols), index % cols])
         axs[math.floor(index / cols), index % cols].set_title(item)
         del for_plot
-    axs[math.floor(index / cols), index % cols].legend(loc='upper left', prop={'size': 6})
+    axs[math.floor(index / cols), index % cols].legend(loc='upper left', prop={'size': 6}, ncol=5)
     axs[math.floor(index / cols), index % cols].grid()
     axs[math.floor(index / cols), index % cols].xaxis.set_label_text('')
     axs[math.floor(index / cols), index % cols].yaxis.set_label_text('')
