@@ -106,8 +106,19 @@ result = result_reg
 [BG_CALC,OFFSET_CALC] = custom_fun.find_bgCalc_and_offsetCalc(result)
 OFFSET_CALC = OFFSET_CALC.set_index(result.index)
 BG_CALC = BG_CALC.set_index(result.index)
-# result['INTERCEPT'] = result['OFFSET'] - result_reg['BG_CALC']
-result['INTERCEPT'] = OFFSET_CALC[0][:]-result['BG'][:]
+result['INTERCEPT'] = result['OFFSET'] - result['BG']
+result['BG CAL'] = BG_CALC
+result['OFFSET CAL'] = OFFSET_CALC
+result['INTERCEPT CAL'] = OFFSET_CALC[0][:]-result['BG'][:]
+
+detailed_report = 0
+report = result
+if detailed_report != 1:
+    report = result.loc[:, result.columns != 'BG CAL']
+    report = report.loc[:, report.columns != 'OFFSET CAL']
+    report = report.loc[:, report.columns != 'INTERCEPT']
+    report.rename(columns = {'INTERCEPT CAL':'INTERCEPT'}, inplace = True)
+
 
 
 # record the end time and display total processing time
@@ -118,13 +129,13 @@ print('\n\nProcessing took ' + str(time_delta_main_loop))
 # Write table to excel file
 print('\n\nWriting INS Characterization Table')
 xls_file = result_loc + '\Instrument Working Zone.xlsx'
-result.to_excel(xls_file, index=False, header=True)
+report.to_excel(xls_file, index=False, header=True)
 
-# Export BKG of each INS per chamber per channel per Temperature
-# so only average over 5 cycle in the corresponding T
-dataset_bkg = dataset[dataset.CONC_CODE=="BKG"]
-dataset_bkg_avg_cycle = custom_fun.averaging(dataset_bkg, avg_over_factor='CYCLE', avged_factor=output_column)
-dataset_bkg_avg_cycle.to_excel(result_loc + r"\background_per_temperature.xlsx", index=False, header=True)
+# # Export BKG of each INS per chamber per channel per Temperature
+# # so only average over 5 cycle in the corresponding T
+# dataset_bkg = dataset[dataset.CONC_CODE=="BKG"]
+# dataset_bkg_avg_cycle = custom_fun.averaging(dataset_bkg, avg_over_factor='CYCLE', avged_factor=output_column)
+# dataset_bkg_avg_cycle.to_excel(result_loc + r"\background_per_temperature.xlsx", index=False, header=True)
 
 
 print('\n\nPlotting')
